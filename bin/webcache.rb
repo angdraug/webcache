@@ -12,5 +12,5 @@
 
 require 'webcache'
 
-server = WebCache::Server.new('localhost', 8088, 1)
+server = WebCache::Server.new('localhost', 8088, 30)
 server.run

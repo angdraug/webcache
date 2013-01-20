@@ -43,7 +43,7 @@ class Request
         parse
         serve
       rescue Exception => e
-        log "Exception: " + e.inspect + e.backtrace.join("\n")
+        log "Exception: " + e.inspect + "\n" + e.backtrace.join("\n")
         @incoming.shutdown
       end
     end
@@ -61,7 +61,27 @@ class Request
     end
   end
 
+  def cache
+    Cache.instance
+  end
+
   def serve
+    if response = cache[@uri]
+      log 'cache hit: ' + @uri.to_s
+      send(response)
+    else
+      response = get_response
+      if response.content_length and response.content_length < Cache::SIZE
+        log 'cache miss: ' + @uri.to_s
+        send(cache[@uri] = serialize(response))
+      else
+        log 'uncacheable: ' + @uri.to_s
+        stream(response)
+      end
+    end
+  end
+
+  def get_response
     Net::HTTP.start(@uri.host, @uri.port) do |http|
       req = Net::HTTP::Get.new(@uri.request_uri)
 
@@ -71,24 +91,52 @@ class Request
       end
       req['Connection'] = 'close'
 
-      proxy(http.request(req))
+      http.request(req)
     end
   end
 
-  def proxy(response)
-    @incoming.write("HTTP/1.1 200 OK\r\n")
+  def banner(response)
+    "HTTP/1.1 #{response.code} #{response.message}\r\n"
+  end
 
+  def header(response)
+    header = ''
     response.canonical_each do |name, value|
-      @incoming.write(name + ': ' + value + "\r\n") unless name.downcase == 'connection'
+      next if %w[connection transfer-encoding].include?(name.downcase)
+      header << name + ': ' + value + "\r\n"
     end
-    @incoming.write("Connection: close\r\n\r\n")
+    header << "Connection: close\r\n\r\n"
+  end
 
-    @incoming.write(response.read_body)
+  def serialize(response)
+    message = banner(response)
+    message << header(response)
+    message << response.read_body
+  end
+
+  def stream(response)
+    @incoming.write(banner(response))
+    @incoming.write(header(response))
+
+    if response.class.body_permitted?
+      begin
+        response.read_body do |chunk|
+          @incoming.write(chunk)
+        end
+      rescue IOError
+        @incoming.write(response.body)
+      end
+    end
+    @incoming.shutdown
+  end
+
+  def send(message)
+    @incoming.write(message)
     @incoming.shutdown
   end
 
   def log(message)
-    STDERR << "WebCache Request: " << message + "\n"
+    STDERR << "WebCache Request: " + message + "\n"
     STDERR.flush
   end
 end

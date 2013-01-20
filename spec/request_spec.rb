@@ -46,7 +46,31 @@ describe WebCache::Request do
     request.headers['Host'].should == 'localhost'
   end
 
-  it "can proxy an HTTP response" do
+  it "can serialize an HTTP response" do
+    request = WebCache::Request.new('')
+    request.should be_a_kind_of WebCache::Request
+    class << request
+      public :serialize
+    end
+
+    response = Object.new
+    class << response
+      def code; 200; end
+      def message; 'OK'; end
+
+      def canonical_each
+        yield ['Content-Type', 'text/html']
+      end
+
+      def read_body
+        '<html>test</html>'
+      end
+    end
+
+    request.serialize(response).should == "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n<html>test</html>"
+  end
+
+  it "can stream an HTTP response" do
     incoming = StringIO.new
     class << incoming
       def shutdown
@@ -57,21 +81,25 @@ describe WebCache::Request do
     request = WebCache::Request.new(incoming)
     request.should be_a_kind_of WebCache::Request
     class << request
-      public :proxy
+      public :stream
     end
 
     response = Object.new
     class << response
+      def Object.body_permitted?; true; end
+      def code; 200; end
+      def message; 'OK'; end
+
       def canonical_each
         yield ['Content-Type', 'text/html']
       end
 
       def read_body
-        '<html>test</html>'
+        yield '<html>test</html>'
       end
     end
 
-    request.proxy(response)
+    request.stream(response)
     incoming.read.should == "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n<html>test</html>"
   end
 end
