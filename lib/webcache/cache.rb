@@ -93,7 +93,7 @@ class Cache
 
         entry_locked = entry.mutex.try_lock
       end
-      sleep(rand * LOCK_SLEEP) unless entry_locked
+      sleep(rand * LOCK_TICK) unless entry_locked
     end
 
     entry.record_access
