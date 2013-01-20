@@ -29,20 +29,20 @@ describe WebCache::Request do
   end
 
   it "can parse an HTTP request" do
-    incoming = StringIO.new("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+    incoming = StringIO.new("GET http://localhost/ HTTP/1.1\r\nHost: localhost\r\n\r\n")
     request = WebCache::Request.new(incoming)
     request.should be_a_kind_of WebCache::Request
     request.read_incoming
     request.ready?.should == true
     class << request
       public :parse
-      attr_reader :method, :request_uri, :headers, :host, :port
+      attr_reader :method, :uri, :headers, :host, :port
     end
     request.parse
     request.method.should == 'GET'
-    request.request_uri.should == '/'
+    request.uri.request_uri.should == '/'
+    request.uri.host.should == 'localhost'
+    request.uri.port.should == 80
     request.headers['Host'].should == 'localhost'
-    request.host.should == 'localhost'
-    request.port.should == 80
   end
 end

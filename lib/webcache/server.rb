@@ -45,6 +45,7 @@ class Server
       if request.ready?
         socket.close_read
         @connections.delete(socket)
+        @requests.delete(socket)
         request.start
       end
     end

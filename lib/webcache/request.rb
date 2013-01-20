@@ -20,7 +20,7 @@ class Request
     @buffer = ''
     @ready = false
     @method = nil
-    @request_uri = nil
+    @uri = nil
     @headers = {}
     @host = nil
     @port = nil
@@ -44,6 +44,7 @@ class Request
         serve
       rescue Exception => e
         log "Exception: " + e.inspect + e.backtrace.join("\n")
+        @incoming.shutdown
       end
     end
   end
@@ -52,32 +53,29 @@ class Request
 
   def parse
     method, *header_lines = @buffer.split("\r\n")
-    @method, @request_uri, version = method.split(/\s+/)
+    @method, request_uri, version = method.split(/\s+/)
+    @uri = URI(request_uri)
     header_lines.each do |header_line|
       name, value = header_line.split(': ', 2)
       @headers[name] = value
     end
-    @host, @port = @headers['Host'].split(':', 2)
-    @port ||= 80
   end
 
   def serve
-    req = Net::HTTP::Get.new(@request_uri)
-    @headers.each do |name, value|
-      next if %w[connection accept-encoding if-modified-since cache-control pragma].include?(name.downcase)
-      log name + ': ' + value
-      req[name] = value
-    end
-    req['Connection'] = 'close'
+    Net::HTTP.start(@uri.host, @uri.port) do |http|
+      req = Net::HTTP::Get.new(@uri.request_uri)
 
-    response = Net::HTTP.start(@host, @port) do |http|
-      http.request(req)
-    end
+      @headers.each do |name, value|
+        next if %w[connection accept-encoding if-modified-since cache-control pragma].include?(name.downcase)
+        req[name] = value
+      end
+      req['Connection'] = 'close'
 
-    process_response(response)
+      proxy(http.request(req))
+    end
   end
 
-  def process_response(response)
+  def proxy(response)
     @incoming.write("HTTP/1.1 200 OK\r\n")
 
     response.canonical_each do |name, value|
@@ -91,6 +89,7 @@ class Request
 
   def log(message)
     STDERR << "WebCache Request: " << message + "\n"
+    STDERR.flush
   end
 end
 
