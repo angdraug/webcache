@@ -45,4 +45,33 @@ describe WebCache::Request do
     request.uri.port.should == 80
     request.headers['Host'].should == 'localhost'
   end
+
+  it "can proxy an HTTP response" do
+    incoming = StringIO.new
+    class << incoming
+      def shutdown
+        self.rewind
+      end
+    end
+
+    request = WebCache::Request.new(incoming)
+    request.should be_a_kind_of WebCache::Request
+    class << request
+      public :proxy
+    end
+
+    response = Object.new
+    class << response
+      def canonical_each
+        yield ['Content-Type', 'text/html']
+      end
+
+      def read_body
+        '<html>test</html>'
+      end
+    end
+
+    request.proxy(response)
+    incoming.read.should == "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n<html>test</html>"
+  end
 end
