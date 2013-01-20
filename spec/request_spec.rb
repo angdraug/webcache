@@ -9,7 +9,7 @@ describe WebCache::Request do
   it "is not ready by default" do
     request = WebCache::Request.new(nil)
     request.should be_a_kind_of WebCache::Request
-    request.ready?.should == false
+    request.ready?.should be_false
   end
 
   it "can read data from incoming connection" do
@@ -17,7 +17,7 @@ describe WebCache::Request do
     request = WebCache::Request.new(incoming)
     request.should be_a_kind_of WebCache::Request
     request.read_incoming
-    request.ready?.should == false
+    request.ready?.should be_false
   end
 
   it "becomes ready after reading request from incoming connection" do
@@ -25,7 +25,7 @@ describe WebCache::Request do
     request = WebCache::Request.new(incoming)
     request.should be_a_kind_of WebCache::Request
     request.read_incoming
-    request.ready?.should == true
+    request.ready?.should be_true
   end
 
   it "can parse an HTTP request" do
@@ -33,17 +33,17 @@ describe WebCache::Request do
     request = WebCache::Request.new(incoming)
     request.should be_a_kind_of WebCache::Request
     request.read_incoming
-    request.ready?.should == true
+    request.ready?.should be_true
     class << request
       public :parse
       attr_reader :method, :uri, :headers, :host, :port
     end
     request.parse
-    request.method.should == 'GET'
-    request.uri.request_uri.should == '/'
-    request.uri.host.should == 'localhost'
-    request.uri.port.should == 80
-    request.headers['Host'].should == 'localhost'
+    request.method.should eq 'GET'
+    request.uri.request_uri.should eq '/'
+    request.uri.host.should eq 'localhost'
+    request.uri.port.should eq 80
+    request.headers['Host'].should eq 'localhost'
   end
 
   it "can serialize an HTTP response" do
@@ -67,7 +67,7 @@ describe WebCache::Request do
       end
     end
 
-    request.serialize(response).should == "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n<html>test</html>"
+    request.serialize(response).should eq "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n<html>test</html>"
   end
 
   it "can stream an HTTP response" do
@@ -100,6 +100,6 @@ describe WebCache::Request do
     end
 
     request.stream(response)
-    incoming.read.should == "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n<html>test</html>"
+    incoming.read.should eq "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n<html>test</html>"
   end
 end

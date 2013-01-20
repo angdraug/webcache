@@ -27,7 +27,7 @@ class CacheEntry
   end
 
   def override_index
-    @atime
+    - ((Time.now - @atime)/60).ceil * @value.size
   end
 end
 
@@ -55,9 +55,10 @@ class Cache
     begin
       @mutex.synchronize do
         @size += value.size
+        entry.value = value
         check_size
       end
-      return entry.value = value
+      return value
     ensure
       entry.mutex.unlock
     end

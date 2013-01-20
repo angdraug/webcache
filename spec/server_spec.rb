@@ -10,7 +10,7 @@ describe WebCache::Server do
   it "returns nil when there is no clients" do
     server = WebCache::Server.new('localhost', 8088, 0.001)
     socket = server.get_socket
-    socket.should == nil
+    socket.should be_nil
     server.stop
   end
 
@@ -23,7 +23,7 @@ describe WebCache::Server do
     socket = server.get_socket
     socket.should be_a_kind_of TCPSocket
     r = socket.gets("\r\n", 1500)
-    r.should == "GET / HTTP/1.1\r\n"
+    r.should eq "GET / HTTP/1.1\r\n"
     server.stop
   end
 end
